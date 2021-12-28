@@ -1,4 +1,4 @@
-#include "sbus.h"
+#include <sbus.h>
 #include <Streaming.h>
 #include <Servo.h>
 
@@ -13,13 +13,18 @@
 SbusRx sbus_rx(&Serial);
 Servo servo1;
 
+int stearing = 95;
+
 void setup() {
+  TCCR2B = TCCR2B & B11111000 | B00000001;
+  
   servo1.attach(SW);
   pinMode(FW, OUTPUT);
   pinMode(BW, OUTPUT);
   pinMode(HL_PIN, OUTPUT);
   pinMode(BL_PIN, OUTPUT);
   stop();
+  servo1.write(stearing);
   while (!Serial) {}
   /* Begin the SBUS communication */
   sbus_rx.Begin();
@@ -32,7 +37,7 @@ void loop() {
       return;
     }
     int throttle = sbus_rx.rx_channels()[1];
-    int steering = sbus_rx.rx_channels()[3];
+    int newSteering = map(sbus_rx.rx_channels()[3], 0, 1810, 70, 115);
     int HL = sbus_rx.rx_channels()[5];
     int BL = sbus_rx.rx_channels()[6];
     
@@ -42,6 +47,8 @@ void loop() {
     } else if (throttle < 900) {
         digitalWrite(FW, LOW);
         analogWrite(BW, map(throttle, 172, 900, 255, 0));
+    } else {
+        stop();
     }
 
     if (HL > 200) {
@@ -55,9 +62,11 @@ void loop() {
     } else {
       digitalWrite(BL_PIN, LOW);
     }
-   
-    servo1.writeMicroseconds(steering + 580);
-    
+
+    if (newSteering != stearing) {
+      servo1.write(newSteering);
+      stearing = newSteering;
+    }
   }
 }
 
